@@ -1,0 +1,55 @@
+# PlatformIO build output
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# PlatformIO cache
+.pio/build/
+.pio/libdeps/
+
+# Dependency folders
+libdeps/
+
+# Environment variables / secrets
+.env
+.env.*
+credentials.ini
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+
+# C/C++ IntelliSense cache
+.vscode/.browse.c_cpp.db*
+.vscode/ipch/
+
+# PlatformIO local config
+platformio_override.ini
+
+# Compiled binaries
+*.bin
+*.elf
+*.map
+
+# Arduino / embedded build artifacts
+*.o
+*.a
+*.d
+
+# Test output
+test/build/
+
+# Node tools (if later may web dashboard)
+node_modules/
+dist/
