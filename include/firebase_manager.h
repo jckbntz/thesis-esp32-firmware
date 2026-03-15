@@ -1,10 +1,5 @@
 #pragma once
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  These defines MUST come before FirebaseClient.h in every translation unit
-//  that includes this header.  They gate which modules are compiled in.
-//  They are also set in platformio.ini build_flags as a safety net.
-// ─────────────────────────────────────────────────────────────────────────────
 #ifndef ENABLE_FIRESTORE
   #define ENABLE_FIRESTORE
 #endif
@@ -17,16 +12,20 @@
 #include <FirebaseClient.h>
 
 #include "flow_sensor.h"
+#include "leak_detector.h"
 #include "credentials.h"
 
 namespace FirebaseManager
 {
-    // Call once in setup() — after WiFiManager::connectWiFi().
     void begin();
-
-    // Call every loop() iteration — drives token refresh internally.
     void loop();
 
-    // Build and write a 10-sensor Firestore document. Returns true on success.
-    bool sendSensors(const FlowSensor* sensors, int count);
+    // Print full reading to Serial — always free, zero quota.
+    void printReading(const FlowSensor*  sensors,  int sensorCount,
+                      const PipeSegment* segments, int segmentCount);
+
+    // Write structured document to Firestore — costs one write per call.
+    // Only call when WRITE_TO_FIRESTORE == 1.
+    bool sendReading(const FlowSensor*  sensors,  int sensorCount,
+                     const PipeSegment* segments, int segmentCount);
 }
