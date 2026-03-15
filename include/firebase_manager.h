@@ -1,24 +1,32 @@
 #pragma once
 
-#include <Firebase_ESP_Client.h>
+// ─────────────────────────────────────────────────────────────────────────────
+//  These defines MUST come before FirebaseClient.h in every translation unit
+//  that includes this header.  They gate which modules are compiled in.
+//  They are also set in platformio.ini build_flags as a safety net.
+// ─────────────────────────────────────────────────────────────────────────────
+#ifndef ENABLE_FIRESTORE
+  #define ENABLE_FIRESTORE
+#endif
+#ifndef ENABLE_USER_AUTH
+  #define ENABLE_USER_AUTH
+#endif
 
-// ── Firestore collection / document path ───────────────────────────────────
-// Writes to:  flow_readings/{deviceId}/readings/{timestamp}
-#define DEVICE_ID "esp32_node_01"
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <FirebaseClient.h>
+
+#include "flow_sensor.h"
+#include "credentials.h"
 
 namespace FirebaseManager
 {
-    extern FirebaseData fbdo;
-    extern FirebaseAuth auth;
-    extern FirebaseConfig config;
+    // Call once in setup() — after WiFiManager::connectWiFi().
+    void begin();
 
-    void connectFirebase();
+    // Call every loop() iteration — drives token refresh internally.
+    void loop();
 
-    /**
-     * Write both sensor readings to Firestore in a single document.
-     * @param flowIn  – FlowSensor1_In  (L/min)
-     * @param flowOut – FlowSensor2_Out (L/min)
-     * @return true on success
-     */
-    bool sendFlowReadings(float flowIn, float flowOut);
+    // Build and write a 10-sensor Firestore document. Returns true on success.
+    bool sendSensors(const FlowSensor* sensors, int count);
 }

@@ -3,10 +3,9 @@
 
 namespace WiFiManager
 {
-
     void connectWiFi()
     {
-        Serial.print("\n\nConnecting to WiFi");
+        Serial.print("\n[WiFi] Connecting");
         WiFi.begin(WIFI_SSID, WIFI_PASS);
 
         while (WiFi.status() != WL_CONNECTED)
@@ -15,6 +14,7 @@ namespace WiFiManager
             Serial.print(".");
         }
 
-        Serial.printf("\n[WiFi] connected — IP: %s\n", WiFi.localIP().toString().c_str());
+        Serial.printf("\n[WiFi] Connected — IP: %s\n",
+                      WiFi.localIP().toString().c_str());
     }
 }

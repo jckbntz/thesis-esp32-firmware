@@ -13,7 +13,7 @@ libdeps/
 # Environment variables / secrets
 .env
 .env.*
-credentials.ini
+credentials.h
 
 # Logs
 *.log
