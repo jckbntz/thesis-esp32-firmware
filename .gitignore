@@ -53,3 +53,6 @@ test/build/
 # Node tools (if later may web dashboard)
 node_modules/
 dist/
+
+.vscode/
+test/

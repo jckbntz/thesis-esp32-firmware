@@ -1,16 +1,17 @@
 #include "real_flow_sensor.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Calibration
-//  YF-S201  ≈ 450 pulses / litre
-//  Measure with a known volume and tune this value for your exact sensor unit.
+//  Calibration — YF-S201
+//  Manufacturer equation: frequency (Hz) = 7.5 × flow_rate (L/min)
+//  Equivalently: 450 pulses accumulate per litre at any flow rate.
+//  Tune PULSES_PER_LITRE if your specific unit measures differently.
 // ─────────────────────────────────────────────────────────────────────────────
 static constexpr float PULSES_PER_LITRE = 450.0f;
 
 namespace RealFlowSensor
 {
     // ── Shared ISR ────────────────────────────────────────────────────────────
-    //  attachInterruptArg() passes a typed pointer so one ISR function handles
+    //  attachInterruptArg() passes a typed pointer so one function handles
     //  every channel — no copy-pasted ISR per sensor needed.
     static void IRAM_ATTR onPulse(void* arg)
     {
@@ -23,10 +24,10 @@ namespace RealFlowSensor
     {
         for (int i = 0; i < count; i++)
         {
-            const uint8_t pin      = sensors[i].pin;
-            // Pins 34/35/36/39 are input-only — no internal pull-up available.
-            const bool    inputOnly = (pin == 34 || pin == 35 ||
-                                       pin == 36 || pin == 39);
+            const uint8_t pin = sensors[i].pin;
+            // Pins 34/35/36/39 are input-only on ESP32 — no internal pull-up.
+            const bool inputOnly = (pin == 34 || pin == 35 ||
+                                    pin == 36 || pin == 39);
             pinMode(pin, inputOnly ? INPUT : INPUT_PULLUP);
 
             attachInterruptArg(
@@ -40,15 +41,15 @@ namespace RealFlowSensor
 
     void readAndReset(FlowSensor* sensors, int count, unsigned long intervalMs)
     {
-        // One critical section — IRQs off only during the atomic snapshot.
+        const float intervalMin = static_cast<float>(intervalMs) / 60000.0f;
+
+        // Disable interrupts only for the atomic snapshot — keep the window
+        // as short as possible so we don't drop pulses on other channels.
         noInterrupts();
         for (int i = 0; i < count; i++)
         {
-            const uint32_t pulses  = sensors[i].pulseCount;
-            sensors[i].pulseCount  = 0;
-
-            const float intervalMin =
-                static_cast<float>(intervalMs) / 60000.0f;
+            const uint32_t pulses = sensors[i].pulseCount;
+            sensors[i].pulseCount = 0;
 
             sensors[i].currentFlow = (intervalMin > 0.0f)
                 ? static_cast<double>(pulses / (PULSES_PER_LITRE * intervalMin))

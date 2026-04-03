@@ -5,4 +5,5 @@
 namespace WiFiManager
 {
     void connectWiFi();
+    void maintainConnection();
 }

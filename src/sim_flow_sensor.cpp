@@ -2,7 +2,6 @@
 
 namespace SimulatedFlowSensor
 {
-    // esp_random() = 32-bit hardware RNG on ESP32, no <random> header needed.
     void fillAll(FlowSensor* sensors, int count,
                  float minVal, float maxVal,
                  unsigned long intervalMs)
@@ -12,14 +11,15 @@ namespace SimulatedFlowSensor
 
         for (int i = 0; i < count; i++)
         {
+            // esp_random() — 32-bit hardware RNG, uniform distribution
             const float norm =
                 static_cast<float>(esp_random()) /
-                static_cast<float>(UINT32_MAX);  // 0.0 – 1.0
+                static_cast<float>(UINT32_MAX);   // 0.0 – 1.0
 
             sensors[i].currentFlow =
                 static_cast<double>(minVal + norm * (maxVal - minVal));
 
-            // Accumulate: flow (L/min) × elapsed interval (min) = litres added
+            // Accumulate: flow (L/min) × elapsed (min) = litres added this tick
             sensors[i].totalLitres += sensors[i].currentFlow * intervalMin;
         }
     }
