@@ -10,7 +10,7 @@
 //  0 = simulated random values (safe for bench testing without sensors wired)
 //  1 = real YF-S201 sensors via ISR pulse counting
 // ─────────────────────────────────────────────────────────────────────────────
-#define USE_REAL_SENSORS 0
+#define USE_REAL_SENSORS 1
 
 #if USE_REAL_SENSORS
   #include "real_flow_sensor.h"

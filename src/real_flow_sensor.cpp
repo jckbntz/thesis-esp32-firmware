@@ -25,9 +25,8 @@ namespace RealFlowSensor
         for (int i = 0; i < count; i++)
         {
             const uint8_t pin = sensors[i].pin;
-            // Pins 34/35/36/39 are input-only on ESP32 — no internal pull-up.
-            const bool inputOnly = (pin == 34 || pin == 35 ||
-                                    pin == 36 || pin == 39);
+            // Pins 34/35 are input-only on ESP32 — no internal pull-up.
+            const bool inputOnly = (pin == 34 || pin == 35);
             pinMode(pin, inputOnly ? INPUT : INPUT_PULLUP);
 
             attachInterruptArg(
