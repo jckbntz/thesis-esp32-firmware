@@ -13,7 +13,7 @@ libdeps/
 # Environment variables / secrets
 .env
 .env.*
-credentials.ini
+credentials.h
 
 # Logs
 *.log
@@ -53,3 +53,6 @@ test/build/
 # Node tools (if later may web dashboard)
 node_modules/
 dist/
+
+.vscode/
+test/

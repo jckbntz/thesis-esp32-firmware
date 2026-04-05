@@ -1,93 +1,125 @@
 #include <Arduino.h>
+#include "credentials.h"
 #include "wifi_manager.h"
-#include "firebase_manager.h"
+#include "mqtt_manager.h"
 #include "flow_sensor.h"
+#include "node_config.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  CONFIGURATION
+//  SENSOR MODE
+//  0 = simulated random values (safe for bench testing without sensors wired)
+//  1 = real YF-S201 sensors via ISR pulse counting
 // ─────────────────────────────────────────────────────────────────────────────
+#define USE_REAL_SENSORS 1
 
-// Set to 1 to use real hardware sensors, 0 to use simulated random values.
-#define USE_REAL_SENSORS 0
-
-// Pins used when USE_REAL_SENSORS == 1
-#define FLOW_PIN_1 GPIO_NUM_18 // FlowSensor1_In
-#define FLOW_PIN_2 GPIO_NUM_19 // FlowSensor2_Out
-
-// How often to sample + upload (milliseconds)
-static constexpr unsigned long SEND_INTERVAL_MS = 5000UL;
+#if USE_REAL_SENSORS
+  #include "real_flow_sensor.h"
+#else
+  #include "sim_flow_sensor.h"
+#endif
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  FREE-PLAN WRITE-BUDGET GUARD
+//  PUBLISH INTERVAL
+//  How often the ESP32 reads sensors and publishes to MQTT.
+//  Node-RED receives each publish and applies its 5-second debounce on top,
+//  so keep this ≤ DEBOUNCE_TIME_MS in the Node-RED function (currently 5000 ms).
+//  Recommended: 2000 ms gives Node-RED ~2–3 samples within its debounce window.
+// ─────────────────────────────────────────────────────────────────────────────
+static constexpr unsigned long PUBLISH_INTERVAL_MS = 2000UL;
+
+static_assert(PUBLISH_INTERVAL_MS >= 500UL,
+    "PUBLISH_INTERVAL_MS below 500 ms risks flooding the broker.");
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SENSOR ARRAY  —  built from node_config.h via X-macro expansion
 //
-//  Firestore free tier: 20,000 writes/day
-//  At one write every 3 s that is 28,800 writes/day — over budget!
-//
-//  Safe intervals:
-//    Every  5 s  →  17,280 writes/day  ✓  (comfortable margin)
-//    Every  3 s  →  28,800 writes/day  ✗  (exceeds limit)
-//    Every 10 s  →   8,640 writes/day  ✓  (very safe)
-//
-//  ► Change SEND_INTERVAL_MS to 5000 or higher for production use.
+//  To add/remove sensors: edit SENSOR_DEFS in node_config.h only.
+//  Nothing here needs to change.
 // ─────────────────────────────────────────────────────────────────────────────
-static_assert(SEND_INTERVAL_MS >= 5000,
-              "SEND_INTERVAL_MS must be >= 5000 ms to stay within the Firestore "
-              "free-plan 20,000 writes/day limit. "
-              "3 s would produce ~28,800 writes/day.");
+namespace
+{
+    // Step 1: count entries by expanding into an enum.
+    enum SensorIndex {
+        #define X(pin, topic) _SENSOR_IDX_##pin##_ENUM,
+        SENSOR_DEFS
+        #undef X
+        NUM_SENSORS
+    };
+
+    static_assert(NUM_SENSORS > 0, "SENSOR_DEFS must define at least one sensor.");
+
+    // Step 2: build the FlowSensor array by expanding the same macro.
+    //   { pin, topic, pulseCount=0, totalPulses=0, currentFlow=0, totalLitres=0 }
+    static FlowSensor sensors[NUM_SENSORS] = {
+        #define X(pin, topic) { pin, topic, 0, 0, 0.0, 0.0 },
+        SENSOR_DEFS
+        #undef X
+    };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  GLOBALS
+//  TIMING
 // ─────────────────────────────────────────────────────────────────────────────
-static unsigned long lastSendTime = 0;
+static unsigned long lastPublishTime = 0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SETUP
 // ─────────────────────────────────────────────────────────────────────────────
 void setup()
 {
-  Serial.begin(115200);
-  delay(1000);
+    Serial.begin(115200);
+    delay(500);
 
-  WiFiManager::connectWiFi();
-  FirebaseManager::connectFirebase();
+    Serial.println("\n════════════════════════════════════════");
+    Serial.println("  Daloyko Flow Node — booting");
+    Serial.printf ("  Sensors : %d\n", NUM_SENSORS);
+    Serial.printf ("  Interval: %lu ms\n", PUBLISH_INTERVAL_MS);
+    Serial.printf ("  User ID : %s\n", USER_ID);
+    Serial.printf ("  Mode    : %s\n",
+        USE_REAL_SENSORS ? "REAL sensors" : "SIMULATED sensors");
+    Serial.println("════════════════════════════════════════\n");
+
+    WiFiManager::connectWiFi();
+    MqttManager::begin();
 
 #if USE_REAL_SENSORS
-  RealFlowSensor::begin(FLOW_PIN_1, FLOW_PIN_2);
-  Serial.println("[Main] Mode: REAL sensors");
-#else
-  Serial.println("[Main] Mode: SIMULATED sensors (random values)");
+    RealFlowSensor::begin(sensors, NUM_SENSORS);
+    Serial.println("[Main] Real sensor ISRs attached.\n");
 #endif
+
+    lastPublishTime = millis();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  LOOP  – non-blocking timer (no delay, no threads needed on ESP32)
+//  LOOP
 // ─────────────────────────────────────────────────────────────────────────────
 void loop()
 {
-  unsigned long now = millis();
+    // ── Keep connections alive ────────────────────────────────────────────────
+    WiFiManager::maintainConnection();
+    MqttManager::loop();
 
-  if (now - lastSendTime >= SEND_INTERVAL_MS)
-  {
-    unsigned long elapsed = now - lastSendTime; // exact interval for real sensor
-    lastSendTime = now;
+    const unsigned long now = millis();
 
-    float flowIn = 0.0f;
-    float flowOut = 0.0f;
+    if (now - lastPublishTime >= PUBLISH_INTERVAL_MS)
+    {
+        const unsigned long elapsed = now - lastPublishTime;
+        lastPublishTime = now;
 
+        // ── 1. Read sensors ───────────────────────────────────────────────────
 #if USE_REAL_SENSORS
-    // ── Real sensors ──────────────────────────────────────────────────
-    RealFlowSensor::readAndReset(elapsed, flowIn, flowOut);
+        RealFlowSensor::readAndReset(sensors, NUM_SENSORS, elapsed);
 #else
-    // ── Simulated sensors ─────────────────────────────────────────────
-    flowIn = SimulatedFlowSensor::readFlow(0.5f, 15.0f);
-    flowOut = SimulatedFlowSensor::readFlow(0.5f, 14.0f); // slightly less than in
+        SimulatedFlowSensor::fillAll(sensors, NUM_SENSORS,
+                                     0.5f, 15.0f, elapsed);
 #endif
 
-    Serial.printf("[Sensors] In: %.2f L/min  |  Out: %.2f L/min\n",
-                  flowIn, flowOut);
+        // ── 2. Print to Serial ────────────────────────────────────────────────
+        MqttManager::printAll(sensors, NUM_SENSORS);
 
-    FirebaseManager::sendFlowReadings(flowIn, flowOut);
-  }
-
-  // ── Put your other non-blocking tasks here ────────────────────────────
+        // ── 3. Publish to MQTT → Node-RED ─────────────────────────────────────
+        const bool ok = MqttManager::publishAll(sensors, NUM_SENSORS);
+        if (!ok)
+            Serial.println("[Main] ⚠ One or more publishes failed — will retry next tick.");
+    }
 }
