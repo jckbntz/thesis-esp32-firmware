@@ -13,7 +13,6 @@ libdeps/
 # Environment variables / secrets
 .env
 .env.*
-credentials.h
 
 # Logs
 *.log
@@ -56,3 +55,7 @@ dist/
 
 .vscode/
 test/
+credentials_esp1.h
+credentials_esp2.h
+credentials_esp3.h
+credentials_esp4.h

@@ -1,6 +1,6 @@
 #pragma once
 #include <WiFi.h>
-#include "credentials.h"
+#include "node_selector.h"
 
 namespace WiFiManager
 {

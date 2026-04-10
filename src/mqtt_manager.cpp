@@ -1,6 +1,5 @@
 #include "mqtt_manager.h"
-#include "credentials.h"
-#include "node_config.h"
+#include "node_selector.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClient.h>

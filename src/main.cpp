@@ -1,9 +1,8 @@
 #include <Arduino.h>
-#include "credentials.h"
 #include "wifi_manager.h"
 #include "mqtt_manager.h"
 #include "flow_sensor.h"
-#include "node_config.h"
+#include "node_selector.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SENSOR MODE
