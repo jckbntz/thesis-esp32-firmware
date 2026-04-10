@@ -29,6 +29,11 @@ namespace MqttManager
     // Returns true if all publishes succeeded.
     bool publishAll(const FlowSensor* sensors, int count);
 
+    // Publish a diagnostic heartbeat to daloyko/<USER_ID>/<HEARTBEAT_TOPIC>.
+    // Payload: {"uptime":<seconds>, "rssi":<dBm>}
+    // Call on its own non-blocking timer in loop() — independent of publishAll().
+    bool publishHeartbeat();
+
     // Print the same data to Serial in human-readable form (zero MQTT cost).
     void printAll(const FlowSensor* sensors, int count);
 }

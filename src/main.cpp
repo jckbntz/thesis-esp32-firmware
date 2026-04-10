@@ -59,8 +59,10 @@ namespace
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TIMING
+//  Two completely independent timers — heartbeat never blocks sensor reads.
 // ─────────────────────────────────────────────────────────────────────────────
-static unsigned long lastPublishTime = 0;
+static unsigned long lastPublishTime   = 0;
+static unsigned long lastHeartbeatTime = 0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SETUP
@@ -121,5 +123,16 @@ void loop()
         const bool ok = MqttManager::publishAll(sensors, NUM_SENSORS);
         if (!ok)
             Serial.println("[Main] ⚠ One or more publishes failed — will retry next tick.");
+    }
+
+    // ── Heartbeat — independent 10-second timer ───────────────────────────────
+    //  Uses millis() so it never blocks the sensor loop above.
+    //  Sends:  daloyko/<USER_ID>/<HEARTBEAT_TOPIC>  →  {"uptime":…, "rssi":…}
+    //  Node-RED watchdog timeout is 60 s — this fires every 10 s, giving
+    //  5 missed messages of buffer before a false "OFFLINE" alarm triggers.
+    if (now - lastHeartbeatTime >= HEARTBEAT_INTERVAL_MS)
+    {
+        lastHeartbeatTime = now;
+        MqttManager::publishHeartbeat();
     }
 }

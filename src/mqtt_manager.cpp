@@ -1,5 +1,6 @@
 #include "mqtt_manager.h"
 #include "credentials.h"
+#include "node_config.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -96,6 +97,40 @@ namespace MqttManager
         }
 
         return allOk;
+    }
+
+    // ── publishHeartbeat() ────────────────────────────────────────────────────
+    //  Topic:   daloyko/<USER_ID>/<HEARTBEAT_TOPIC>
+    //  Payload: {"uptime":<seconds since boot>, "rssi":<WiFi signal dBm>}
+    //
+    //  Node-RED only needs to see the topic arrive — it stamps Date.now() into
+    //  Firebase and ignores the payload entirely.  We send diagnostics anyway
+    //  (Level 2) because it's free and the React dashboard can use them later.
+    //
+    //  Called on its own 10-second timer in main.cpp loop(), completely
+    //  independent from the sensor publish interval.  millis() never blocks.
+    bool publishHeartbeat()
+    {
+        if (!mqtt.connected() && !reconnect()) return false;
+
+        char topic[128];
+        snprintf(topic, sizeof(topic),
+                 "daloyko/%s/%s", USER_ID, HEARTBEAT_TOPIC);
+
+        // Build JSON: {"uptime":12345, "rssi":-66}
+        char payload[64];
+        snprintf(payload, sizeof(payload),
+                 "{\"uptime\":%lu,\"rssi\":%d}",
+                 millis() / 1000UL,
+                 WiFi.RSSI());
+
+        const bool ok = mqtt.publish(topic, payload, /*retain=*/false);
+        if (ok)
+            Serial.printf("[MQTT] ♥ Heartbeat → %s  %s\n", topic, payload);
+        else
+            Serial.printf("[MQTT] ✗ Heartbeat failed: %s\n", topic);
+
+        return ok;
     }
 
     // ── printAll() ────────────────────────────────────────────────────────────

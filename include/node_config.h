@@ -22,33 +22,32 @@
 //    ( gpio_pin,  mqtt_subtopic )
 //
 //  gpio_pin      — ESP32 GPIO the YF-S201 signal wire is connected to.
-//                  Pins 34/35 are INPUT-ONLY — no INPUT_PULLUP.
+//                  Pins 34/35/36/39 are INPUT-ONLY — no INPUT_PULLUP.
 //  mqtt_subtopic — the third path segment of the MQTT topic.
 //                  Use exactly "main_inlet" for the main meter.
 //                  Use "<zone>_in" / "<zone>_out" for zone pairs.
 //                  Zone names can be anything (a, b, kitchen, bathroom …).
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Heartbeat topic suffix ────────────────────────────────────────────────────
+//  Full topic published: daloyko/<USER_ID>/<HEARTBEAT_TOPIC>
+//  Must be unique per ESP32 node so Node-RED can tell them apart.
+//  Change the suffix for each node (heartbeat_ESP32_2, heartbeat_ESP32_3 …).
+#define HEARTBEAT_TOPIC "heartbeat_ESP32_4"
+
+// ── Heartbeat interval ────────────────────────────────────────────────────────
+//  Send every 10 s.  Node-RED watchdog fires after 60 s — gives 5 missed
+//  heartbeats of buffer before a false "OFFLINE" alarm triggers.
+#define HEARTBEAT_INTERVAL_MS 10000UL
+
 #define SENSOR_DEFS \
-    X(34, "main_inlet") \
-    X(35, "Floor1_a_in")       \
-    X( 5, "Floor1_a_out")      \
-    X(15, "Floor1_b_in")       \
-    X( 4, "Floor1_b_out")      \
-    X(13, "Floor1_c_in")       \
-    X(14, "Floor1_c_out")      \
-    X(16, "Floor1_d_in")       \
-    X(17, "Floor1_d_out")      \
-    X(18, "Floor1_e_in")       \
-    X(19, "Floor1_e_out")      \
-    X(21, "Floor1_f_in")       \
-    X(22, "Floor1_f_out")      \
-    X(23, "Floor1_g_in")       \
-    X(25, "Floor1_g_out")      \
-    X(26, "Floor1_h_in")       \
-    X(27, "Floor1_h_out")      \
-    X(32, "Floor1_i_in")       \
-    X(33, "Floor1_i_out")
+    X(35, "Riser1_n02_in")       \
+    X(32, "Floor2_n01_in")       \
+    X(33, "Floor2_n02_in")       \
+    X(21, "Riser1_n02_out")      \
+    X(19, "Floor2_n01_out")      \
+    X(18, "Floor2_n02_out")
+    // X(34, "main_inlet") \
 //  ↑ Add or remove rows freely.
 //    Each row = one physical YF-S201 sensor.
 //    The order here becomes the sensor index (0, 1, 2 …).
