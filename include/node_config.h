@@ -47,7 +47,7 @@
     X(21, "Riser1_n02_out")      \
     X(19, "Floor2_n01_out")      \
     X(18, "Floor2_n02_out")
-    // X(34, "main_inlet") \
+    // X(34, "main_inlet") // FOR ESP 1 ONLY
 //  ↑ Add or remove rows freely.
 //    Each row = one physical YF-S201 sensor.
 //    The order here becomes the sensor index (0, 1, 2 …).
